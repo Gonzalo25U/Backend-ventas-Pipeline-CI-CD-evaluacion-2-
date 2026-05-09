@@ -1,0 +1,99 @@
+name: CI/CD - Backend Ventas
+
+# Trigger: solo en push a la rama "deploy"
+on:
+  push:
+    branches: [deploy]
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Construir imagen Docker y publicar en Docker Hub
+  # ────────────────────────────────────────────────────────────────────────────
+  build-and-push:
+    name: 🔨 Build & Push imagen Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      # Paso 1: Descargar el código del repositorio
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # Paso 2: Autenticarse en Docker Hub con secrets del repositorio
+      - name: Login a Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Paso 3: Configurar Buildx para builds optimizados con caché
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Paso 4: Construir y publicar imagen con dos tags:
+      #   - :latest        → siempre apunta a la versión más reciente
+      #   - :<sha commit>  → permite rollback a una versión específica
+      - name: Build y Push imagen
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            gonzalo25u/backend-ventas:latest
+            gonzalo25u/backend-ventas:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Desplegar en EC2 "app" (privada) usando EC2 "web" como jump host
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy en EC2 app
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      # Paso 1: Configurar la llave SSH para el jump host (EC2 web)
+      - name: Configurar llave SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # Evita el prompt de "Are you sure you want to continue connecting?"
+          ssh-keyscan -H ${{ secrets.EC2_WEB_HOST }} >> ~/.ssh/known_hosts
+
+      # Paso 2: Copiar docker-compose.yml a EC2 "app" pasando por EC2 "web"
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Copiar docker-compose a EC2 app vía jump host
+        run: |
+          scp -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
+              docker-compose.yml \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_APP_HOST }}:/home/${{ secrets.EC2_USER }}/backend-ventas/
+
+      # Paso 3: Conectarse a EC2 "app" vía jump host y ejecutar el deploy
+      - name: Deploy en EC2 app
+        run: |
+          ssh -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_APP_HOST }} << 'ENDSSH'
+
+            cd /home/${{ secrets.EC2_USER }}/backend-ventas
+
+            # Escribir variables de entorno
+            cat > .env << EOF
+            DB_ENDPOINT=${{ secrets.DB_ENDPOINT }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_USERNAME=${{ secrets.DB_USERNAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            EOF
+
+            # Pull de la nueva imagen y reiniciar contenedor
+            docker compose pull
+            docker compose up -d --remove-orphans
+
+            # Limpiar imágenes antiguas para liberar espacio
+            docker image prune -f
+
+          ENDSSH
