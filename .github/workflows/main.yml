@@ -36,7 +36,7 @@ jobs:
       - name: Build y Push imagen
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./Springboot-API-REST
           push: true
           tags: |
             gonzalo25u/backend-ventas:latest
@@ -59,23 +59,31 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          # Evita el prompt de "Are you sure you want to continue connecting?"
           ssh-keyscan -H ${{ secrets.EC2_WEB_HOST }} >> ~/.ssh/known_hosts
 
       # Paso 2: Copiar docker-compose.yml a EC2 "app" pasando por EC2 "web"
       - name: Checkout código
         uses: actions/checkout@v4
 
+      - name: Crear directorio en EC2 app
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_APP_HOST }} \
+              "mkdir -p /home/${{ secrets.EC2_USER }}/backend-ventas"
+
       - name: Copiar docker-compose a EC2 app vía jump host
         run: |
-          scp -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
-              docker-compose.yml \
+          scp -o StrictHostKeyChecking=no \
+              -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
+              ./Springboot-API-REST/docker-compose.yml \
               ${{ secrets.EC2_USER }}@${{ secrets.EC2_APP_HOST }}:/home/${{ secrets.EC2_USER }}/backend-ventas/
 
       # Paso 3: Conectarse a EC2 "app" vía jump host y ejecutar el deploy
       - name: Deploy en EC2 app
         run: |
-          ssh -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
+          ssh -o StrictHostKeyChecking=no \
+              -o ProxyJump=${{ secrets.EC2_USER }}@${{ secrets.EC2_WEB_HOST }} \
               ${{ secrets.EC2_USER }}@${{ secrets.EC2_APP_HOST }} << 'ENDSSH'
 
             cd /home/${{ secrets.EC2_USER }}/backend-ventas
