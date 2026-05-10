@@ -7,12 +7,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: gonzalo25u/Backend-ventas-Pipeline-CI-CD-evaluacion-2-:latest
+    image: gonzalo25u/backend-ventas:latest
     container_name: backend-ventas
     restart: unless-stopped
     environment:
       # IP privada de EC2 "data" donde corre MySQL
-      DB_ENDPOINT: ${DB_ENDPOINT:-10.0.150.130}
+      DB_ENDPOINT: ${DB_ENDPOINT:-10.0.152.195}
       DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
