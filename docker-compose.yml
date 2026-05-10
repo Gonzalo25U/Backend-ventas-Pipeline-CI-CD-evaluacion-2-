@@ -18,18 +18,13 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "8081:8081"
+      # 8081 en el host → 8080 donde corre Tomcat dentro del contenedor
+      - "8081:8080"
     volumes:
       # Named volume para logs persistentes del backend
       - ventas_logs:/app/logs
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
 volumes:
   # Named volume para persistencia de logs.
