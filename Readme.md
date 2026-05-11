@@ -13,7 +13,6 @@ Backend de gestión de ventas desarrollado con **Spring Boot 3.4.4** y desplegad
 
 ![Frontend](docs/AWS-instancias.png)
 
-
 ---
 
 ## 🛠️ Tecnologías utilizadas
