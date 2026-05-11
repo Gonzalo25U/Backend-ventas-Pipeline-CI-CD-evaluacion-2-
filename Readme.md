@@ -9,9 +9,9 @@ Backend de gestión de ventas desarrollado con **Spring Boot 3.4.4** y desplegad
 
 ![Pipeline en verde](docs/pipeline.png)
 
-## 🌐 Frontend desplegado en AWS
+## 🌐 Backend Ventas (App) desplegado en AWS
 
-![Frontend](docs/AWS-instancias.png)
+![Backend Ventas](docs/AWS-instancias.png)
 
 ---
 
