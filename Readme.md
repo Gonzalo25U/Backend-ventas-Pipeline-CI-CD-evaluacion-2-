@@ -5,6 +5,9 @@ Backend de gestión de ventas desarrollado con **Spring Boot 3.4.4** y desplegad
 ---
 
 
+
+
+
 ## 📸 Pipeline en funcionamiento
 
 ![Pipeline en verde](docs/pipeline.png)
